@@ -1,7 +1,7 @@
 import sys
 from database import crear_tablas
 from ui import App
-from error_reporter import enviar_error
+from error_reporter import report_error
 
 def manejar_excepciones(tipo, valor, tb):
     enviar_error(valor, tb)
@@ -13,3 +13,4 @@ crear_tablas()
 
 app = App()
 app.mainloop()
+

@@ -1,71 +1,150 @@
 import sqlite3
+from error_reporter import report_error
 
-DB = "gym_v2.db"
+DB = "vikingo_gym.db"
 
+
+# ---------------- CONEXION ----------------
 def conectar():
-    db = sqlite3.connect(DB)
-    # Esto permite que SQLite use llaves foráneas (importante)
-    db.execute("PRAGMA foreign_keys = ON")
-    return db
+    try:
+        return sqlite3.connect(DB)
+    except Exception as e:
+        report_error(e, "database.py")
+        raise
 
+
+# ---------------- CREAR TABLAS ----------------
 def crear_tablas():
-    db = conectar()
-    c = db.cursor()
+    try:
+        db = conectar()
+        c = db.cursor()
 
-    # 1. Tabla de Socios (Datos maestros)
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS socios(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT NOT NULL,
-        telefono TEXT,
-        huella TEXT UNIQUE,
-        fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
-        activo INTEGER DEFAULT 1
-    )
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS socios(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            telefono TEXT,
+            vencimiento TEXT,
+            huella TEXT UNIQUE
+        )
+        """)
+
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS asistencias(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            socio_id INTEGER,
+            fecha TEXT
+        )
+        """)
+
+        db.commit()
+
+    except Exception as e:
+        report_error(e, "database.py")
+
+    finally:
+        db.close()
+
+
+# ---------------- REGISTRAR SOCIO ----------------
+def registrar_socio(nombre, telefono, vencimiento, huella):
+
+    try:
+        db = conectar()
+        c = db.cursor()
+
+        c.execute(
+            "INSERT INTO socios(nombre,telefono,vencimiento,huella) VALUES(?,?,?,?)",
+            (nombre, telefono, vencimiento, huella)
+        )
+
+        db.commit()
+
+    except sqlite3.IntegrityError:
+        print("⚠️ Esa huella ya está registrada")
+
+    except Exception as e:
+        report_error(e, "database.py")
+
+    finally:
+        db.close()
+
+
+# ---------------- BUSCAR POR HUELLA ----------------
+def buscar_por_huella(huella):
+
+    try:
+        db = conectar()
+        c = db.cursor()
+
+        c.execute(
+            "SELECT id,nombre,vencimiento FROM socios WHERE huella=?",
+            (huella,)
+        )
+
+        dato = c.fetchone()
+
+        return dato
+
+    except Exception as e:
+        report_error(e, "database.py")
+
+    finally:
+        db.close()
+
+
+# ---------------- REGISTRAR ASISTENCIA ----------------
+def registrar_asistencia(socio_id, fecha):
+
+    try:
+        db = conectar()
+        c = db.cursor()
+
+        c.execute(
+            "INSERT INTO asistencias(socio_id,fecha) VALUES(?,?)",
+            (socio_id, fecha)
+        )
+
+        db.commit()
+
+    except Exception as e:
+        report_error(e, "database.py")
+
+    finally:
+        db.close()
+
+
+def obtener_socios():
+
+    conn = sqlite3.connect(DB)
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id, nombre, telefono, vencimiento
+        FROM socios
+        ORDER BY nombre
     """)
 
-    # 2. Tabla de Membresías
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS membresias(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        socio_id INTEGER,
-        fecha_inicio DATE NOT NULL,
-        fecha_vencimiento DATE NOT NULL,
-        monto_pagado REAL,
-        FOREIGN KEY (socio_id) REFERENCES socios(id) ON DELETE CASCADE
-    )
-    """)
+    datos = cur.fetchall()
 
-    # 3. Tabla de Asistencias
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS asistencias(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        socio_id INTEGER,
-        fecha_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (socio_id) REFERENCES socios(id) ON DELETE CASCADE
-    )
-    """)
+    conn.close()
 
-    db.commit()
-    db.close()
-    print(f"¡Éxito! La base de datos '{DB}' ha sido creada o actualizada.")
+    return datos
 
-def obtener_estado_socio(huella):
-    db = conectar()
-    c = db.cursor()
-    query = """
-    SELECT s.id, s.nombre, m.fecha_vencimiento 
-    FROM socios s
-    LEFT JOIN membresias m ON s.id = m.socio_id
-    WHERE s.huella = ?
-    ORDER BY m.fecha_vencimiento DESC LIMIT 1
-    """
-    c.execute(query, (huella,))
-    dato = c.fetchone()
-    db.close()
-    return dato
 
-# --- ESTA ES LA PARTE QUE DEBES AGREGAR ---
-if __name__ == "__main__":
-    # Al ejecutar este archivo directamente, se crearán las tablas
-    crear_tablas()
+def buscar_socio_nombre(nombre):
+
+    conn = sqlite3.connect(DB)
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id, nombre, telefono, vencimiento
+        FROM socios
+        WHERE nombre LIKE ?
+    """, (f"%{nombre}%",))
+
+    datos = cur.fetchall()
+
+    conn.close()
+
+    return datos

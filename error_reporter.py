@@ -1,30 +1,28 @@
 import requests
 import traceback
-import platform
-import datetime
-import os
+from datetime import datetime
 
-WEBHOOK_URL = os.getenv("https://discord.com/api/webhooks/1475179699230474515/BUXUUe8fFErtH_WBW3_-P5TNEX8DoDQ0POA2B2ibo14dvBkXUbboxIREnXfWnvbfBj81")  
+WEBHOOK = "https://discord.com/api/webhooks/1475179699230474515/BUXUUe8fFErtH_WBW3_-P5TNEX8DoDQ0POA2B2ibo14dvBkXUbboxIREnXfWnvbfBj81"
 
-def enviar_error(error):
-    try:
-        stacktrace = traceback.format_exc()
 
-        mensaje = {
-            "content": f"""
- **ERROR EN GYM APP** 
+def report_error(error, archivo="desconocido"):
 
- Fecha: {datetime.datetime.now()}
-Sistema: {platform.system()} {platform.release()}
+    mensaje = f"""
+🚨 ERROR EN VIKINGO GYM
 
-Tipo: {type(error).__name__}
-Mensaje: {str(error)}
+Archivo: {archivo}
 
-```{stacktrace}```
+Error:
+{str(error)}
+
+Traceback:
+{traceback.format_exc()}
+
+Hora:
+{datetime.now()}
 """
-        }
 
-        requests.post(WEBHOOK_URL, json=mensaje)
-
-    except Exception as e:
-        print("Error enviando el reporte:", e)
+    try:
+        requests.post(WEBHOOK, json={"content": mensaje})
+    except:
+        print("No se pudo enviar error a Discord")
